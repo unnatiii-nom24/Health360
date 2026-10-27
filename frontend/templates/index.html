@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Health360 | Dashboard</title><link rel="stylesheet" href="{{ url_for('static',filename='style.css') }}"><script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script></head>
+<body>
+<header class="topbar"><div class="navwrap"><a class="brand" href="/">Health<span>360</span></a><nav class="navlinks"><a class="active" href="/">Dashboard</a><a href="/story">Data Story</a><a href="/about">About Project</a></nav></div></header>
+<main class="wrap">
+<section class="hero"><div><div class="eyebrow">Healthcare analytics · Interactive overview</div><h1>See the patterns.<br>Ask better questions.</h1><p>Health360 brings patient demographics, clinical measurements, lifestyle indicators and chronic-disease flags into one place. Use the filters to explore the supplied dataset; the visuals are descriptive, not a medical diagnosis.</p></div><div class="hero-badge">● Dataset loaded · {{ "{:,}".format(data_quality.rows) }} records</div></section>
+<form class="filters" method="get">
+{% for key,label in [('age_group','Age group'),('gender','Gender'),('bmi_category','BMI category'),('exercise','Exercise level')] %}
+<div class="field"><label for="{{ key }}">{{ label }}</label><select id="{{ key }}" name="{{ key }}">{% for opt in options[key] %}<option value="{{ opt }}" {% if filters[key]==opt %}selected{% endif %}>{{ opt }}</option>{% endfor %}</select></div>
+{% endfor %}<button class="btn" type="submit">Apply filters</button>
+</form>
+<section class="kpis">
+<div class="kpi"><div class="label">Records in view</div><div class="value">{{ "{:,}".format(stats.patients) }}</div><div class="hint">Filtered patient records</div></div>
+<div class="kpi"><div class="label">Heart-disease flag</div><div class="value">{{ stats.heart }}%</div><div class="hint">Share of current view</div></div>
+<div class="kpi"><div class="label">Diabetes flag</div><div class="value">{{ stats.diabetes }}%</div><div class="hint">Share of current view</div></div>
+<div class="kpi"><div class="label">Stroke flag</div><div class="value">{{ stats.stroke }}%</div><div class="hint">Share of current view</div></div>
+<div class="kpi"><div class="label">Average BP value</div><div class="value">{{ stats.avg_bp }}</div><div class="hint">Dataset units not supplied</div></div>
+<div class="kpi"><div class="label">Average BMI</div><div class="value">{{ stats.avg_bmi }}</div><div class="hint">BMI field average</div></div>
+</section>
+<div class="section-title"><div><h2>Patient profile</h2><p>Who is represented in the selected records?</p></div></div>
+<section class="grid">
+<div class="chart-card"><h3>Patient records by age group</h3><p>Count of records in each age segment.</p><div id="ageChart" class="chart"></div></div>
+<div class="chart-card"><h3>Exercise-level distribution</h3><p>Exercise codes are labelled Low, Moderate and High for display; verify this mapping with the source data dictionary.</p><div id="exerciseChart" class="chart"></div></div>
+<div class="chart-card"><h3>Patient records by BMI category</h3><p>Categories use standard BMI cut-offs for grouping, not for diagnosis.</p><div id="bmiChart" class="chart"></div></div>
+<div class="chart-card"><h3>Average recorded blood pressure by age group</h3><p>Compare group averages; the source file does not specify measurement context or units.</p><div id="bpChart" class="chart"></div></div>
+</section>
+<div class="section-title"><div><h2>Clinical and lifestyle patterns</h2><p>Compare the recorded flags and measurements without assuming causation.</p></div></div>
+<section class="grid">
+<div class="chart-card"><h3>Disease-label counts</h3><p>Number of records where each disease field is coded as 1.</p><div id="diseaseChart" class="chart"></div></div>
+<div class="chart-card"><h3>Lifestyle and symptom flags</h3><p>Percentage of records with a positive flag in each field.</p><div id="lifestyleChart" class="chart"></div></div>
+<div class="chart-card wide"><h3>Disease flags by BMI category</h3><p>Rates are calculated within each BMI category so groups can be compared more fairly.</p><div id="bmiDiseaseChart" class="chart"></div></div>
+<div class="chart-card wide"><h3>Heart-disease flag by BMI category and exercise level</h3><p>Heatmap shows the percentage of records with a positive heart-disease flag in each group.</p><div id="heatChart" class="chart"></div></div>
+</section>
+<div class="insight"><strong>Data-quality note.</strong> The supplied health_risk_score is {{ data_quality.risk_unique }} unique value(s) across the dataset. It is constant in the provided CSV, so it should not be treated as a working risk score until the source or calculation is checked.</div>
+<footer class="footer">Health360 · Exploratory data visualization only. Dataset has {{ data_quality.columns }} columns, {{ data_quality.missing }} missing cells and {{ data_quality.duplicates }} exact duplicate rows based on a basic CSV check. Do not use this dashboard to make clinical decisions.</footer>
+</main>
+<script>
+const C={{ charts|tojson }};
+const base={paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',font:{family:'Arial, sans-serif',color:'#53625d',size:11},margin:{l:42,r:18,t:15,b:48},showlegend:false};
+const green='#537b72', peach='#e8b49a', blue='#6b91b8', gold='#d5b76a', rose='#cf8e8c';
+function draw(id,data,layout={}){Plotly.newPlot(id,data,{...base,...layout},{responsive:true,displayModeBar:false});}
+draw('ageChart',[{type:'bar',x:C.age.x,y:C.age.y,marker:{color:green},hovertemplate:'%{x}: %{y} records<extra></extra>'}],{yaxis:{title:'Records',gridcolor:'#edf0eb'},xaxis:{tickangle:-15}});
+draw('exerciseChart',[{type:'pie',labels:C.exercise.x,values:C.exercise.y,hole:.55,marker:{colors:[green,peach,blue]},textinfo:'label+percent',hovertemplate:'%{label}: %{value}<extra></extra>'}],{showlegend:true,legend:{orientation:'h',y:-.12}});
+draw('bmiChart',[{type:'bar',x:C.bmi.x,y:C.bmi.y,marker:{color:[blue,green,peach,rose]},hovertemplate:'%{x}: %{y} records<extra></extra>'}],{yaxis:{title:'Records',gridcolor:'#edf0eb'},xaxis:{tickangle:-10}});
+draw('bpChart',[{type:'bar',x:C.bp.x,y:C.bp.y,marker:{color:blue},hovertemplate:'%{x}: %{y}<extra></extra>'}],{yaxis:{title:'Average value',gridcolor:'#edf0eb'},xaxis:{tickangle:-15}});
+draw('diseaseChart',[{type:'bar',x:C.disease.map(d=>d.name),y:C.disease.map(d=>d.value),marker:{color:[green,peach,blue]},hovertemplate:'%{x}: %{y} records<extra></extra>'}],{yaxis:{title:'Positive flags',gridcolor:'#edf0eb'}});
+draw('lifestyleChart',[{type:'bar',x:C.lifestyle.map(d=>d.name),y:C.lifestyle.map(d=>d.value),marker:{color:[green,peach,blue,gold]},hovertemplate:'%{x}: %{y}%<extra></extra>'}],{yaxis:{title:'Records (%)',gridcolor:'#edf0eb'},xaxis:{tickangle:-15}});
+draw('bmiDiseaseChart',[
+{name:'Heart disease',type:'bar',x:C.bmi_disease.map(d=>d.category),y:C.bmi_disease.map(d=>d.heart_rate),marker:{color:green}},
+{name:'Diabetes',type:'bar',x:C.bmi_disease.map(d=>d.category),y:C.bmi_disease.map(d=>d.diabetes_rate),marker:{color:peach}}
+],{barmode:'group',showlegend:true,legend:{orientation:'h',y:1.15},yaxis:{title:'Positive flags (%)',gridcolor:'#edf0eb'},xaxis:{tickangle:-10}});
+draw('heatChart',[{type:'heatmap',x:C.heat.x,y:C.heat.y,z:C.heat.z,colorscale:[[0,'#edf2ed'],[.5,'#9db9aa'],[1,'#315c54']],colorbar:{title:'% flagged'},hovertemplate:'Exercise: %{x}<br>BMI: %{y}<br>Heart-disease flag: %{z}%<extra></extra>'}],{margin:{l:100,r:30,t:15,b:50},xaxis:{title:'Exercise level'},yaxis:{title:'BMI category',autorange:'reversed'}});
+</script></body></html>
